@@ -1,22 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-
+<canvas id="canvas" width="600" height="600"></canvas>
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>RRT Simulator</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="rrt.js"></script>
 </head>
 
 <body>
-  <body>
-    <div id="sim">
-      <div id="robot"></div>
-      <div id="obstacle"></div>
-    </div>
-  </body>
-  <script class="sim"></script>
+  <h1>RRT Simulator</h1>
+  
+  <div id="sim">
+    <input type="button" title="Click to Start" value="Run" onclick="init([0, 0], [10, 10])">
+    <div id="robot"></div>
+    <div id="obstacle"></div>
+  </div>
 </body>
+
 
 </html>

@@ -6,13 +6,21 @@ const obstacles = defineObstacles();
 const NODE_WIDTH = 5;
 const stepSize = 20;
 
+var startPos = [50, 100]
+var endPos = [210, 210]
+
+var rrtStatus;
+
 ctx.fillStyle = 'gray';
 drawSim();
 
+var stopped = true;
 
-function init(startPos, endPos){
-  reset();
-  rrtTree = initRRT([50, 100], [210, 210]);
+
+function init(){
+  stopped = false;
+  resetSim();
+  rrtTree = initRRT(startPos, endPos);
   animate();
 }
 
@@ -20,16 +28,28 @@ function drawSim(){
   ctx.fillStyle = 'gray';
   
   drawObstacles(obstacles);
+
+  drawSquare(startPos[0], startPos[1], color = "orange");
+  drawSquare(endPos[0], endPos[1], color = "orange");
 }
 
-function reset(){
+function resetSim(){
   ctx.beginPath();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawSim();
 }
 
+function reset(){
+  stopped = true;
+  console.log(rrtStatus);
+  if(rrtStatus === "CONVERGED"){
+    resetSim();
+  }
+}
+
 function drawObstacles(obs){
+  ctx.fillStyle = 'gray';
   for(var i = 0; i < obs.length; i++){
     ctx.fillRect(obs[i].x, obs[i].y, obs[i].w, obs[i].h);
   }
@@ -45,23 +65,31 @@ function defineObstacles(){
   
   obs[4] = {x: 100, y: 100, w: 100, h: 100};
   obs[5] = {x: 400, y: 400, w: 20, h: 300};
+  obs[6] = {x: 250, y:  250, w: 40, h: 300};
 
   return obs;
 }
 
 function animate(){
-  var rrtStatus = iterateRRT();
-
-  if(rrtStatus == "ITERATING"){
+  rrtStatus = iterateRRT();
+  console.log(stopped);
+  if(rrtStatus === "ITERATING" && !stopped){
     requestAnimationFrame(animate);
+  }
+  else if(rrtStatus != "CONVERGED"){
+    resetSim();
   }
 }
 
 function addNode(node, tree, color = "gray"){
-  ctx.fillStyle = color;
   tree.nodes.push(node);
+  drawSquare(node.x, node.y, color);
+}
+
+function drawSquare(x, y, color = "gray"){
+  ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.rect(node.x, node.y, NODE_WIDTH, NODE_WIDTH);
+  ctx.rect(x, y, NODE_WIDTH, NODE_WIDTH);
   ctx.stroke();
   ctx.fill();
 }
@@ -108,7 +136,7 @@ function iterateRRT(){
         addEdge(qnew, rrtTree.endNode);
         addNode(rrtTree.endNode, rrtTree, "orange");
 
-        return "CONVERVED";
+        return "CONVERGED";
       }
     }
   }
@@ -117,19 +145,14 @@ function iterateRRT(){
 }
 
 function nearestNode(node, tree){
-  console.log(tree.nodes.length)
-  console.log("RA");
   var nearest = tree.nodes[0];
   var nearestDistance = Number.MAX_VALUE;
 
   for(var i = 0; i < tree.nodes.length; i++){
-    console.log("DISTANCE " + distance(tree.nodes[i], node));
     if(distance(tree.nodes[i], node) < nearestDistance){
       
       nearest = tree.nodes[i];
       nearestDistance = distance(tree.nodes[i], node);
-      console.log("NEW NEAREST " + tree.nodes[i].x);
-      console.log("NEW NEAREST DIST " + nearestDistance);
     }
   }
   return nearest;

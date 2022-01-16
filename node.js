@@ -11,6 +11,8 @@ function nodeIsColliding(node){
   return false;
 }
 
+// TODO: check for line collisions
+
 function distance(p1, p2){
   let x = p2.x - p1.x;
   let y = p2.y - p1.y;

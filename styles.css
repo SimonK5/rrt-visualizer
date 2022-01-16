@@ -3,8 +3,6 @@
   padding: 0;
 }
 canvas {
-  position: absolute;
-  left: 10px;
-  top: 100px;
+  position: static;
   border: 5px solid black;
 }

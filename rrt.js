@@ -4,22 +4,29 @@ const ctx = canvas.getContext('2d');
 const obstacles = defineObstacles();
 
 const NODE_WIDTH = 5;
-const stepSize = 10;
+const stepSize = 20;
 
 ctx.fillStyle = 'gray';
 drawSim();
 
 
 function init(startPos, endPos){
-  rrtTree = initRRT([50, 100], [200, 200]);
+  reset();
+  rrtTree = initRRT([50, 100], [210, 210]);
   animate();
 }
 
 function drawSim(){
-
   ctx.fillStyle = 'gray';
   
   drawObstacles(obstacles);
+}
+
+function reset(){
+  ctx.beginPath();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawSim();
 }
 
 function drawObstacles(obs){
@@ -43,23 +50,37 @@ function defineObstacles(){
 }
 
 function animate(){
-  iterateRRT();
+  var rrtStatus = iterateRRT();
 
-  requestAnimationFrame(animate);
+  if(rrtStatus == "ITERATING"){
+    requestAnimationFrame(animate);
+  }
 }
 
-function addNode(node, tree){
+function addNode(node, tree, color = "gray"){
+  ctx.fillStyle = color;
   tree.nodes.push(node);
-  ctx.fillRect(node.x, node.y, NODE_WIDTH, NODE_WIDTH);
+  ctx.beginPath();
+  ctx.rect(node.x, node.y, NODE_WIDTH, NODE_WIDTH);
+  ctx.stroke();
+  ctx.fill();
 }
 
 function addEdge(node1, node2){
   node1.neighbors.push(node2);
   node2.neighbors.push(node1);
   
-  ctx.moveTo(node1.x, node1.y);
-  ctx.lineTo(node2.x, node2.y);
+  ctx.moveTo(node1.x + NODE_WIDTH / 2, node1.y + NODE_WIDTH / 2);
+  ctx.lineTo(node2.x + NODE_WIDTH / 2, node2.y + NODE_WIDTH / 2);
   ctx.stroke();
+
+  // draw node1 again to avoid overlapping
+  ctx.clearRect(node2.x, node2.y, NODE_WIDTH, NODE_WIDTH);
+  ctx.beginPath();
+  ctx.rect(node2.x, node2.y, NODE_WIDTH, NODE_WIDTH);
+  ctx.stroke();
+  if(node2 == rrtTree.nodes[0]) ctx.fillStyle = 'orange';
+  ctx.fill();
 }
 
 function initRRT(startPos, endPos){
@@ -67,8 +88,9 @@ function initRRT(startPos, endPos){
     nodes: []
   }
 
-  addNode({x: startPos[0], y: startPos[1], neighbors: []}, tree);
-  // tree.nodes.push({x: endPos[0], y: endPos[1], neighbors: []});
+  addNode({x: startPos[0], y: startPos[1], neighbors: []}, tree, "orange");
+
+  tree.endNode = {x: endPos[0], y: endPos[1], neighbors: []};
 
   return tree;
 }
@@ -79,14 +101,19 @@ function iterateRRT(){
     var qnear = nearestNode(qrand, rrtTree);
     var qnew = newNode(qnear, qrand);
     if(!nodeIsColliding(qnew)){
-      addNode(qnew, rrtTree);
       addEdge(qnew, qnear);
+      addNode(qnew, rrtTree);
+
+      if(distance(qnew, rrtTree.endNode) < stepSize){
+        addEdge(qnew, rrtTree.endNode);
+        addNode(rrtTree.endNode, rrtTree, "orange");
+
+        return "CONVERVED";
+      }
     }
   }
-}
 
-function randomNode(){
-  return {x: Math.random() * 600, y: Math.random() * 600, neighbors: []};
+  return "ITERATING";
 }
 
 function nearestNode(node, tree){
@@ -126,18 +153,3 @@ function distance(p1, p2){
   
   return Math.sqrt(x * x + y * y);
 }
-
-function nodeIsColliding(node){
-  const robot = {x: node.x, y: node.y, w: NODE_WIDTH, h: NODE_WIDTH};
-  for(var i = 0; i < obstacles.length; i++){
-    if(robot.x < obstacles[i].x + obstacles[i].w &&
-      robot.x + robot.w > obstacles[i].x &&
-      robot.y < obstacles[i].y + obstacles[i].h &&
-      robot.h + robot.y > obstacles[i].y){
-        return true;
-      }
-  }
-  return false;
-}
-
-

@@ -29,12 +29,16 @@ var stopped = true;
 
 
 function init(algoString){
+  if(rrtStatus == 'ITERATING') return;
+
   document.getElementById("message").innerHTML = "Running " + algoString;
   algo = algoString;
-  stopped = false;
+  
   lines = [];
   resetSim();
+  
   rrtTree = initRRT(startPos, endPos);
+  stopped = false;
   animate();
 }
 
@@ -43,8 +47,8 @@ function drawSim(){
   
   drawObstacles(obstacles);
 
-  drawSquare(startPos[0], startPos[1], color = "orange");
-  drawSquare(endPos[0], endPos[1], color = "orange");
+  drawSquare(startPos[0], startPos[1], color = "red");
+  drawSquare(endPos[0], endPos[1], color = "red");
 }
 
 function resetSim(){
@@ -57,10 +61,7 @@ function resetSim(){
 
 function reset(){
   stopped = true;
-  console.log(rrtStatus);
-  if(rrtStatus === "CONVERGED"){
-    resetSim();
-  }
+  resetSim();
   document.getElementById("message").innerHTML = "";
 }
 
@@ -72,6 +73,7 @@ function drawObstacles(obs){
 }
 
 function resetObstacles(){
+  document.getElementById("message").innerHTML = "";
   obstacles = defineObstacles();
   resetSim();
 }
@@ -101,11 +103,11 @@ function initBoxes(numBoxes){
 
 function animate(){
   rrtStatus = iterateRRT();
-  console.log(stopped);
   if(rrtStatus === "ITERATING" && !stopped){
     requestAnimationFrame(animate);
   }
   else if(stopped && rrtStatus != "CONVERGED"){
+    rrtStatus = 'CONVERGED';
     resetSim();
   }
   else if(rrtStatus == "CONVERGED"){
@@ -113,43 +115,14 @@ function animate(){
   }
 }
 
-function addNode(node, tree, color = "blue"){
-  tree.nodes.push(node);
-  drawSquare(node.x, node.y, color);
-}
 
-function drawSquare(x, y, color = "blue"){
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.rect(x, y, NODE_WIDTH, NODE_WIDTH);
-  ctx.stroke();
-  ctx.fill();
-}
-
-function addEdge(node1, node2){
-  ctx.fillStyle = 'blue';
-  node1.neighbors.push(node2);
-  node2.neighbors.push(node1);
-  
-  ctx.moveTo(node1.x + NODE_WIDTH / 2, node1.y + NODE_WIDTH / 2);
-  ctx.lineTo(node2.x + NODE_WIDTH / 2, node2.y + NODE_WIDTH / 2);
-  ctx.stroke();
-
-  // draw node1 again to avoid overlapping
-  ctx.clearRect(node2.x, node2.y, NODE_WIDTH, NODE_WIDTH);
-  ctx.beginPath();
-  ctx.rect(node2.x, node2.y, NODE_WIDTH, NODE_WIDTH);
-  ctx.stroke();
-  if(node2 == rrtTree.nodes[0]) ctx.fillStyle = 'orange';
-  ctx.fill();
-}
 
 function initRRT(startPos, endPos){
   var tree = {
     nodes: []
   }
 
-  addNode({x: startPos[0], y: startPos[1], neighbors: [], cost: 0}, tree, "orange");
+  addNode({x: startPos[0], y: startPos[1], neighbors: [], cost: 0}, tree, "red");
 
   tree.endNode = {x: endPos[0], y: endPos[1], neighbors: [], cost: 0};
 
@@ -162,37 +135,34 @@ function iterateRRT(){
   var qnear = nearestNode(qrand, rrtTree.nodes);
   var qnew = newNode(qnear, qrand);
 
-  if(!nodeIsColliding(qnew)){
-    if(algo == "RRT"){
-      if(edgeIsColliding(qnew, qnear)) return "ITERATING";
-      addEdge(qnew, qnear);
+  if(nodeIsColliding(qnew)) return "ITERATING";
+
+  if(algo == "RRT"){
+    if(edgeIsColliding(qnew, qnear)) return "ITERATING";
+    addEdge(qnew, qnear);
+  }
+  else if(algo == "RRT*"){
+    var nearNodes = nearNeighbors(qnear, boxes);
+    var qmin;
+    if(nearNodes.length == 0){
+      qmin = nearestNode(qnew, rrtTree.nodes);
+    } 
+    else{
+      qmin = minCostNode(qnew, nearNodes);
     }
-    else if(algo == "RRT*"){
-      var nearNodes = nearNeighbors(qnear, boxes);
-      var qmin;
-      if(nearNodes.length == 0){
-        qmin = nearestNode(qnew, rrtTree.nodes);
-      } 
-      else{
-        qmin = minCostNode(qnew, nearNodes);
-      }
 
-      if(edgeIsColliding(qnew, qmin)) return "ITERATING";
+    if(edgeIsColliding(qnew, qmin)) return "ITERATING";
 
-      addEdge(qnew, qmin);
+    addEdge(qnew, qmin);
 
-      rewire(qnew);
-    }
-    
-    addNode(qnew, rrtTree);
-
-    if(distance(qnew, rrtTree.endNode) < stepSize){
-      addEdge(qnew, rrtTree.endNode);
-      addNode(rrtTree.endNode, rrtTree, "orange");
-
-      return "CONVERGED";
-    }
-    
+    rewire(qnew);
+  }
+  
+  addNode(qnew, rrtTree);
+  if(distance(qnew, rrtTree.endNode) < stepSize){
+    addEdge(qnew, rrtTree.endNode);
+    addNode(rrtTree.endNode, rrtTree, "red");
+    return "CONVERGED";
   }
 
   return "ITERATING";
@@ -237,16 +207,13 @@ function minCostNode(node, otherNodes){
       minCost = newCost;
     }
   }
-  console.log("minCostNode", minCostNode);
-  console.log("otherNodes", otherNodes);
   return minCostNode;
 }
 
 function findBoxNumber(node){
   var boxX = Math.trunc((node.x / WIDTH) * NUM_BOXES);
   var boxY = Math.trunc((node.y / HEIGHT) * NUM_BOXES);
-  console.log("x", node.x);
-  console.log("boxX", boxX);
+
   return [boxX, boxY];
 }
 

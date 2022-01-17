@@ -1,3 +1,34 @@
+function addNode(node, tree, color = "blue"){
+  tree.nodes.push(node);
+  drawSquare(node.x, node.y, color);
+}
+
+function drawSquare(x, y, color = "blue"){
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.rect(x, y, NODE_WIDTH, NODE_WIDTH);
+  ctx.stroke();
+  ctx.fill();
+}
+
+function addEdge(node1, node2){
+  ctx.fillStyle = 'blue';
+  node1.neighbors.push(node2);
+  node2.neighbors.push(node1);
+  
+  ctx.moveTo(node1.x + NODE_WIDTH / 2, node1.y + NODE_WIDTH / 2);
+  ctx.lineTo(node2.x + NODE_WIDTH / 2, node2.y + NODE_WIDTH / 2);
+  ctx.stroke();
+
+  // draw node1 again to avoid overlapping
+  ctx.clearRect(node2.x, node2.y, NODE_WIDTH, NODE_WIDTH);
+  ctx.beginPath();
+  ctx.rect(node2.x, node2.y, NODE_WIDTH, NODE_WIDTH);
+  ctx.stroke();
+  if(node2 == rrtTree.nodes[0]) ctx.fillStyle = 'red';
+  ctx.fill();
+}
+
 function nodeIsColliding(node){
   const robot = {x: node.x, y: node.y, w: NODE_WIDTH, h: NODE_WIDTH};
   for(var i = 0; i < obstacles.length; i++){
@@ -28,9 +59,6 @@ function edgeIsColliding(n1, n2){
               [[ob.x + ob.w, ob.y + ob.h], [ob.x + ob.w, ob.y]], // right
               [[ob.x + ob.w, ob.y + ob.h], [ob.x, ob.y + ob.h]] // bottom
             ];
-    console.log(sides)
-    console.log(n1)
-    console.log(n2)
     for(var j = 0; j < sides.length; j++){
       if(lineLineCollision(n1.x, n1.y, n2.x, n2.y, (sides[j][0])[0], 
         (sides[j][0])[1], (sides[j][1])[0], (sides[j][1])[1])){

@@ -15,14 +15,19 @@
   
   <div id="sim">
     <div id="buttons">
-      <input type="button" class="button" title="Click to Start RRT" value="RRT" onclick="init()">
-      <input type="button" class="button" title="Reset" value="Reset" onclick="reset()">
+      <input type="button" class="button" title="Start RRT" value="RRT" onclick="init('RRT')">
+      <input type="button" class="button" title="Start RRT*" value="RRT*" onclick="init('RRT*')">
       <input type="button" class="button" title="Change Start" value="Change Start" onclick="toggleEdit('START')">
+    </div>
+    <div id="buttons">
       <input type="button" class="button" title="Change Goal" value="Change End" onclick="toggleEdit('END')">
       <input type="button" class="button" title="Draw Obstacle" value="Draw Obstacle" onclick="toggleEdit('INIT_DRAW')">
+      <input type="button" class="button" title="Clear Obstacles" value="Clear Obstacles" onclick="resetObstacles()">
+      <input type="button" class="button" title="Reset" value="Reset" onclick="reset()">
     </div>
   </div>
   <canvas id="canvas" width="600" height="600"></canvas>
+  <p id="message"></p>
   <script src="node.js"></script>
   <script src="rrt.js"></script>
   <script src="interaction.js"></script>

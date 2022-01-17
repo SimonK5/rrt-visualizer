@@ -1,13 +1,24 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-const obstacles = defineObstacles();
+var obstacles = defineObstacles();
+var lines = [];
 
 const NODE_WIDTH = 5;
 const stepSize = 20;
 
-var startPos = [50, 100]
-var endPos = [210, 210]
+const WIDTH = 600;
+const HEIGHT = 600;
+
+// number of boxes per row, for nearest neighbor search
+const NUM_BOXES = 20;
+
+var boxes = initBoxes(NUM_BOXES);
+
+var startPos = [50, 100];
+var endPos = [500, 500];
+
+var algo = "RRT";
 
 var rrtStatus;
 
@@ -17,8 +28,11 @@ drawSim();
 var stopped = true;
 
 
-function init(){
+function init(algoString){
+  document.getElementById("message").innerHTML = "Running " + algoString;
+  algo = algoString;
   stopped = false;
+  lines = [];
   resetSim();
   rrtTree = initRRT(startPos, endPos);
   animate();
@@ -36,6 +50,7 @@ function drawSim(){
 function resetSim(){
   ctx.beginPath();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  boxes = initBoxes(NUM_BOXES);
 
   drawSim();
 }
@@ -46,6 +61,7 @@ function reset(){
   if(rrtStatus === "CONVERGED"){
     resetSim();
   }
+  document.getElementById("message").innerHTML = "";
 }
 
 function drawObstacles(obs){
@@ -53,6 +69,11 @@ function drawObstacles(obs){
   for(var i = 0; i < obs.length; i++){
     ctx.fillRect(obs[i].x, obs[i].y, obs[i].w, obs[i].h);
   }
+}
+
+function resetObstacles(){
+  obstacles = defineObstacles();
+  resetSim();
 }
 
 function defineObstacles(){
@@ -63,11 +84,19 @@ function defineObstacles(){
   obs[2] = {x: 20, y: 580, w: 600, h: 20};
   obs[3] = {x: 0, y: 0, w: 20, h: 600};
   
-  obs[4] = {x: 100, y: 100, w: 100, h: 100};
+  obs[4] = {x: 150, y: 0, w: 20, h: 200};
   obs[5] = {x: 400, y: 400, w: 20, h: 300};
-  obs[6] = {x: 250, y:  250, w: 40, h: 300};
+  obs[6] = {x: 200, y: 350, w: 20, h: 300};
 
   return obs;
+}
+
+function initBoxes(numBoxes){
+  var boxes = [];
+  for(var i = 0; i < numBoxes; i++){
+    boxes[i] = Array.from({length:NUM_BOXES}, () => []);
+  }
+  return boxes;
 }
 
 function animate(){
@@ -76,17 +105,20 @@ function animate(){
   if(rrtStatus === "ITERATING" && !stopped){
     requestAnimationFrame(animate);
   }
-  else if(rrtStatus != "CONVERGED"){
+  else if(stopped && rrtStatus != "CONVERGED"){
     resetSim();
+  }
+  else if(rrtStatus == "CONVERGED"){
+    document.getElementById("message").innerHTML = "Success!";
   }
 }
 
-function addNode(node, tree, color = "gray"){
+function addNode(node, tree, color = "blue"){
   tree.nodes.push(node);
   drawSquare(node.x, node.y, color);
 }
 
-function drawSquare(x, y, color = "gray"){
+function drawSquare(x, y, color = "blue"){
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.rect(x, y, NODE_WIDTH, NODE_WIDTH);
@@ -95,6 +127,7 @@ function drawSquare(x, y, color = "gray"){
 }
 
 function addEdge(node1, node2){
+  ctx.fillStyle = 'blue';
   node1.neighbors.push(node2);
   node2.neighbors.push(node1);
   
@@ -116,58 +149,147 @@ function initRRT(startPos, endPos){
     nodes: []
   }
 
-  addNode({x: startPos[0], y: startPos[1], neighbors: []}, tree, "orange");
+  addNode({x: startPos[0], y: startPos[1], neighbors: [], cost: 0}, tree, "orange");
 
-  tree.endNode = {x: endPos[0], y: endPos[1], neighbors: []};
+  tree.endNode = {x: endPos[0], y: endPos[1], neighbors: [], cost: 0};
 
   return tree;
 }
 
 function iterateRRT(){
   qrand = randomNode();
-  if(!nodeIsColliding(qrand)){
-    var qnear = nearestNode(qrand, rrtTree);
-    var qnew = newNode(qnear, qrand);
-    if(!nodeIsColliding(qnew)){
+  if(nodeIsColliding(qrand)) return "ITERATING";
+  var qnear = nearestNode(qrand, rrtTree.nodes);
+  var qnew = newNode(qnear, qrand);
+
+  if(!nodeIsColliding(qnew)){
+    if(algo == "RRT"){
+      if(edgeIsColliding(qnew, qnear)) return "ITERATING";
       addEdge(qnew, qnear);
-      addNode(qnew, rrtTree);
-
-      if(distance(qnew, rrtTree.endNode) < stepSize){
-        addEdge(qnew, rrtTree.endNode);
-        addNode(rrtTree.endNode, rrtTree, "orange");
-
-        return "CONVERGED";
-      }
     }
+    else if(algo == "RRT*"){
+      var nearNodes = nearNeighbors(qnear, boxes);
+      var qmin;
+      if(nearNodes.length == 0){
+        qmin = nearestNode(qnew, rrtTree.nodes);
+      } 
+      else{
+        qmin = minCostNode(qnew, nearNodes);
+      }
+
+      if(edgeIsColliding(qnew, qmin)) return "ITERATING";
+
+      addEdge(qnew, qmin);
+
+      rewire(qnew);
+    }
+    
+    addNode(qnew, rrtTree);
+
+    if(distance(qnew, rrtTree.endNode) < stepSize){
+      addEdge(qnew, rrtTree.endNode);
+      addNode(rrtTree.endNode, rrtTree, "orange");
+
+      return "CONVERGED";
+    }
+    
   }
 
   return "ITERATING";
 }
 
-function nearestNode(node, tree){
-  var nearest = tree.nodes[0];
+function rewire(node){
+  var nearNbr = nearNeighbors(node, boxes);
+
+  for(var i = 0; i < nearNbr.length; i++){
+    var nbr = nearNbr[i];
+    var newCost = distance(nbr, node) + node.cost;
+
+    if(newCost < nbr.cost){
+      addEdge(node, nbr);
+      nbr.cost = newCost;
+    }
+  }
+}
+
+function nearestNode(node, otherNodes){
+  var nearest = otherNodes[0];
   var nearestDistance = Number.MAX_VALUE;
 
-  for(var i = 0; i < tree.nodes.length; i++){
-    if(distance(tree.nodes[i], node) < nearestDistance){
+  for(var i = 0; i < otherNodes.length; i++){
+    if(distance(otherNodes[i], node) < nearestDistance){
       
-      nearest = tree.nodes[i];
-      nearestDistance = distance(tree.nodes[i], node);
+      nearest = otherNodes[i];
+      nearestDistance = distance(otherNodes[i], node);
     }
   }
   return nearest;
 }
 
+function minCostNode(node, otherNodes){
+  var minCostNode = otherNodes[0];
+  var minCost = Number.MAX_VALUE;
+
+  for(var i = 0; i < otherNodes.length; i++){
+    var newCost = otherNodes[i] + distance(otherNodes, node);
+    if(newCost < minCost){
+      minCostNode = otherNodes[i];
+      minCost = newCost;
+    }
+  }
+  console.log("minCostNode", minCostNode);
+  console.log("otherNodes", otherNodes);
+  return minCostNode;
+}
+
+function findBoxNumber(node){
+  var boxX = Math.trunc((node.x / WIDTH) * NUM_BOXES);
+  var boxY = Math.trunc((node.y / HEIGHT) * NUM_BOXES);
+  console.log("x", node.x);
+  console.log("boxX", boxX);
+  return [boxX, boxY];
+}
+
+function nearNeighbors(node, boxes){
+  boxNumber = findBoxNumber(node);
+  neighbors = [];
+
+  const dirn = [[0, 0], [0, 1], [1, 1], [1, 0], [1, -1], 
+  [0, -1], [-1, -1], [-1, 0], [-1, 1]];
+
+  for(var i = 0; i < dirn.length; i++){
+    var boxX = clamp(boxNumber[0] + dirn[i][0], 0, NUM_BOXES - 1);
+    var boxY = clamp(boxNumber[1] + dirn[i][1], 0, NUM_BOXES - 1);
+    var box = boxes[boxX][boxY];
+
+    for(var j = 0; j < box.length; j++){
+      neighbors.push(box[j]);
+    }
+  }
+
+  boxes[boxNumber[0]][boxNumber[1]].push(node);
+
+  return neighbors;
+}
+
+function clamp(num, min, max){
+  return Math.min(Math.max(num, min), max);
+}
+
 function newNode(qnear, qrand){
-  var x_dirn = qrand.x - qnear.x;
-  var y_dirn = qrand.y - qnear.y;
+  var xDirn = qrand.x - qnear.x;
+  var yDirn = qrand.y - qnear.y;
 
   var norm = distance(qnear, qrand);
 
-  var new_x = qnear.x + (x_dirn / norm) * Math.min(stepSize, norm);
-  var new_y = qnear.y + (y_dirn / norm) * Math.min(stepSize, norm);
+  var newX = qnear.x + (xDirn / norm) * Math.min(stepSize, norm);
+  var newY = qnear.y + (yDirn / norm) * Math.min(stepSize, norm);
 
-  return {x: new_x, y: new_y, neighbors: []};
+  var qnew = {x: newX, y: newY, neighbors: [], cost: -1}
+
+  qnew.cost = qnear.cost + distance(qnear, qnew);
+
+  return qnew;
 }
 
 function distance(p1, p2){

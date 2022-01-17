@@ -24,7 +24,7 @@ function showEditMessage(name){
     document.getElementById("message").innerHTML = "Click to change end position";
   }
   else if(name == 'INIT_DRAW' || name == 'DRAWING'){
-    document.getElementById("message").innerHTML = "Drag to create obstacle";
+    document.getElementById("message").innerHTML = "Drag to create obstacles";
   }
   else{
     document.getElementById("message").innerHTML = "";

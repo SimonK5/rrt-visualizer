@@ -73,6 +73,7 @@ function drawObstacles(obs){
 }
 
 function resetObstacles(){
+  if(rrtStatus == "ITERATING") return;
   document.getElementById("message").innerHTML = "";
   obstacles = defineObstacles();
   resetSim();

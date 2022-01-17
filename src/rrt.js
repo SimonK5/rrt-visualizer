@@ -5,7 +5,7 @@ var obstacles = defineObstacles();
 var lines = [];
 
 const NODE_WIDTH = 5;
-const stepSize = 20;
+var stepSize = 20;
 
 const WIDTH = 600;
 const HEIGHT = 600;

@@ -25,6 +25,13 @@
       <input type="button" class="button" title="Draw Obstacle" value="Draw Obstacle" onclick="toggleEdit('INIT_DRAW')">
       <input type="button" class="button" title="Clear Obstacles" value="Clear Obstacles" onclick="resetObstacles()">
     </div>
+    <div class="slidecontainer">
+      <p2>Step size: 
+        <output id="output">35</output>
+      </p2><br>
+      <input type="range" min="10" max="60" value="25" class="slider" id="slider">
+      
+    </div>
   </div>
   <canvas id="canvas" width="600" height="600"></canvas>
   <p id="message"></p>

@@ -93,3 +93,12 @@ canvas.addEventListener('mouseup', function(e){
     toggleEdit('INIT_DRAW');
   }
 })
+
+var slider = document.getElementById("slider");
+var output = document.getElementById("output");
+output.innerHTML = slider.value;
+
+slider.oninput = function() {
+  output.innerHTML = this.value;
+  stepSize = this.value;
+}
